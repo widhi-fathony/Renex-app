@@ -196,7 +196,6 @@ def main_app():
     service = st.session_state.service
     
   # ---------------- PAGE: KATALOG MOBIL ----------------
-    # ---------------- PAGE: KATALOG MOBIL ----------------
     if menu == "Katalog Mobil":
         st.header("Katalog Mobil Tersedia")
         st.info("Pilih mobil, tentukan durasi, dan lakukan pembayaran.")
@@ -207,7 +206,7 @@ def main_app():
         for idx, mobil in enumerate(mobil_list):
             with cols[idx % 3]:
                 with st.container(border=True):
-                    # Tampilkan gambar
+                    # Menampilkan Gambar Mobil
                     st.image(mobil.image_url, use_container_width=True)
                     
                     st.markdown(f"### {mobil.merk}")
@@ -218,31 +217,30 @@ def main_app():
                     if mobil.is_available:
                         st.success("Tersedia")
                         
-                        # Key unik untuk state
+                        # Key untuk state checkout dan penyimpanan durasi sementara
                         checkout_key = f"checkout_{mobil.id}"
-                        duration_key = f"saved_duration_{mobil.id}" # Key untuk menyimpan durasi
+                        duration_key = f"saved_duration_{mobil.id}" # <--- KEY BARU UNTUK MENYIMPAN DURASI
 
                         if checkout_key not in st.session_state:
                             st.session_state[checkout_key] = False
 
                         if not st.session_state[checkout_key]:
                             # TAHAP 1: INPUT DURASI
-                            # Kita tampung input user ke variabel 'durasi_input'
+                            # Widget ini akan hilang saat masuk tahap 2, jadi kita perlu simpan nilainya
                             durasi_input = st.number_input(f"Durasi (Hari)", min_value=1, value=1, key=f"d_{mobil.id}")
                             
                             if st.button("Booking Sekarang", key=f"btn_book_{mobil.id}"):
-                                # SOLUSI ERROR: Simpan nilai durasi secara permanen sebelum pindah halaman
-                                st.session_state[duration_key] = durasi_input
+                                # SIMPAN NILAI DURASI KE VARIABLE PERMANEN SEBELUM RERUN
+                                st.session_state[duration_key] = durasi_input 
                                 st.session_state[checkout_key] = True
                                 st.rerun()
-                        
                         else:
-                            # TAHAP 2: KONFIRMASI PEMBAYARAN
+                            # TAHAP 2: KONFIRMASI & PEMBAYARAN
                             st.markdown("---")
                             st.markdown("#### 💳 Konfirmasi")
                             
-                            # SOLUSI ERROR: Ambil durasi dari simpanan kita tadi, bukan dari widget yang sudah hilang
-                            durasi_fix = st.session_state.get(duration_key, 1)
+                            # AMBIL DARI VARIABLE YANG DISIMPAN TADI (Bukan dari key widget)
+                            durasi_fix = st.session_state.get(duration_key, 1) 
                             
                             total_harga = mobil.harga_sewa * durasi_fix
                             
@@ -250,7 +248,7 @@ def main_app():
                             st.markdown(f"Total: **Rp {total_harga:,.0f}**")
                             
                             with st.form(key=f"form_bayar_{mobil.id}"):
-                                metode = st.selectbox("Metode Pembayaran", ["QRIS", "BCA", "Mandiri"])
+                                metode = st.selectbox("Metode Pembayaran", ["QRIS", "Virtual Account", "Transfer Bank"])
                                 c1, c2 = st.columns(2)
                                 with c1:
                                     confirm = st.form_submit_button("✅ Bayar", type="primary")
@@ -342,18 +340,16 @@ def main_app():
                     extra_attr = st.checkbox("4WD?")
                     default_img = IMG_SUV
 
-              # --- SUB-PAGE: TAMBAH MOBIL (KODE PERBAIKAN) ---
+                # --- SUB-PAGE: TAMBAH MOBIL ---
         with tab2:
             st.subheader("Input Mobil Baru")
             
-            # 1. Cek folder penyimpanan gambar (Wajib import os di paling atas)
+            # Buat folder penyimpanan gambar jika belum ada
             if not os.path.exists("car_images"):
                 os.makedirs("car_images")
 
-            # 2. Mulai Form
             with st.form("add_car_form"):
                 tipe_mobil = st.selectbox("Tipe Mobil", ["Hatchback", "Sedan", "SUV"])
-                
                 col1, col2 = st.columns(2)
                 with col1:
                     merk = st.text_input("Merk Mobil (Contoh: Honda Jazz)")
@@ -361,10 +357,10 @@ def main_app():
                 with col2:
                     harga = st.number_input("Harga Sewa per Hari", min_value=100000, step=50000)
                     
-                # Input Spesifik & Default Image
                 extra_attr = None
                 default_img = ""
                 
+                # Logic Default Image (Jika admin tidak upload foto)
                 if tipe_mobil == "Hatchback":
                     extra_attr = st.number_input("Kapasitas Bagasi (Liter)", min_value=100)
                     default_img = IMG_HATCHBACK
@@ -376,47 +372,45 @@ def main_app():
                     extra_attr = is_4wd
                     default_img = IMG_SUV
 
+                # --- BAGIAN UPLOAD FILE ---
                 st.write("---")
-                st.write("Foto Kendaraan (Opsional)")
-                
-                # Upload File ada DI DALAM form
+                st.write("Foto Kendaraan")
                 uploaded_file = st.file_uploader("Upload Foto (JPG/PNG)", type=["jpg", "png", "jpeg"])
                 
-                # --- PERBAIKAN UTAMA DI SINI ---
-                # Tombol Submit WAJIB sejajar (satu garis lurus) dengan widget di atasnya
-                # Artinya tombol ini berada DI DALAM 'with st.form'
                 submit_add = st.form_submit_button("Simpan ke Inventory")
                 
-                # --- LOGIKA PENYIMPANAN ---
-                if submit_add:
-                    if merk and nopol:
-                        id_baru = f"C{len(inv_manager.daftar_mobil)+1:02d}"
+                if submit_add and merk and nopol:
+                    # Generate ID Baru
+                    id_baru = f"C{len(inv_manager.daftar_mobil)+1:02d}"
+                    
+                    # Logika Penyimpanan Gambar
+                    final_img_path = default_img # Default pakai link online
+                    
+                    if uploaded_file is not None:
+                        # 1. Tentukan path simpan (folder/nama_file)
+                        # Kita tambahkan ID di depan nama file agar tidak bentrok jika nama file sama
+                        file_path = os.path.join("car_images", f"{id_baru}_{uploaded_file.name}")
                         
-                        # Tentukan path gambar (Upload atau Default)
-                        final_img_path = default_img 
+                        # 2. Tulis file dari memori ke folder lokal
+                        with open(file_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
                         
-                        if uploaded_file is not None:
-                            # Simpan file ke folder lokal
-                            file_path = os.path.join("car_images", f"{id_baru}_{uploaded_file.name}")
-                            with open(file_path, "wb") as f:
-                                f.write(uploaded_file.getbuffer())
-                            final_img_path = file_path 
-                        
-                        # Buat Objek Mobil
-                        new_car = None
-                        if tipe_mobil == "Hatchback":
-                            new_car = Hatchback(id_baru, merk, nopol, harga, final_img_path, extra_attr)
-                        elif tipe_mobil == "Sedan":
-                            new_car = Sedan(id_baru, merk, nopol, harga, final_img_path, extra_attr)
-                        elif tipe_mobil == "SUV":
-                            new_car = SUV(id_baru, merk, nopol, harga, final_img_path, extra_attr)
-                        
-                        # Simpan ke Inventory
-                        inv_manager.tambah_unit(new_car)
-                        st.success(f"Berhasil menambahkan {merk}!")
-                        st.rerun()
-                    else:
-                        st.error("Mohon lengkapi Merk dan Nomor Polisi!")
+                        # 3. Path inilah yang akan disimpan ke object mobil
+                        final_img_path = file_path
+                    
+                    # Pembuatan Object Mobil
+                    new_car = None
+                    if tipe_mobil == "Hatchback":
+                        new_car = Hatchback(id_baru, merk, nopol, harga, final_img_path, extra_attr)
+                    elif tipe_mobil == "Sedan":
+                        new_car = Sedan(id_baru, merk, nopol, harga, final_img_path, extra_attr)
+                    elif tipe_mobil == "SUV":
+                        new_car = SUV(id_baru, merk, nopol, harga, final_img_path, extra_attr)
+                    
+                    inv_manager.tambah_unit(new_car)
+                    st.success(f"Berhasil menambahkan {merk} dengan foto baru!")
+                    st.rerun()
+
 # --- Main Execution ---
 def main():
     st.set_page_config(page_title="Rental Mobil App", layout="wide")
