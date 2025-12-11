@@ -427,8 +427,8 @@ def main_app():
                         st.rerun()
                     else:
                         st.error("Mohon lengkapi Merk dan Nomor Polisi!")
-                        
-        # --- TAB 3: LAPORAN KEUANGAN (FIXED) ---
+    
+# --- TAB 3: LAPORAN KEUANGAN ---
         with tab3:
             st.subheader("Laporan Pemasukan (Revenue)")
             
@@ -441,13 +441,13 @@ def main_app():
                 st.info("Belum ada data transaksi penyewaan.")
             else:
                 total_pendapatan = sum(b.total_biaya for b in valid_bookings)
+                
                 st.metric(label="Total Pemasukan Bersih", value=f"Rp {total_pendapatan:,.0f}")
                 
                 st.write("---")
                 st.write("### Rincian Transaksi")
                 
                 laporan_data = []
-                # Loop 1: Menyiapkan data untuk Tabel
                 for b in valid_bookings:
                     laporan_data.append({
                         "ID Booking": b.booking_id,
@@ -462,24 +462,18 @@ def main_app():
                 
                 st.dataframe(laporan_data, use_container_width=True)
                 
-                # Loop 2: Menyiapkan string CSV
+
                 csv_header = "ID,Tanggal,Penyewa,Mobil,Total,Status\n"
                 csv_data = csv_header
                 for item in laporan_data:
                     row = f"{item['ID Booking']},{item['Tanggal Sewa']},{item['Penyewa']},{item['Mobil']},{item['Total Biaya']},{item['Status']}\n"
                     csv_data += row
                 
-                # PERBAIKAN PENTING DI SINI:
-                # 1. Posisi sejajar dengan 'st.dataframe' (DI LUAR for loop)
-                # 2. Ditambahkan key="unique_key" untuk mencegah error Duplicate ID
                 st.download_button(
                     label="📥 Download Laporan (CSV)",
                     data=csv_data,
                     file_name="laporan_keuangan_renex.csv",
-                    mime="text/csv",
-                    key="btn_download_csv_unique"  # <--- INI SOLUSI ERRORNYA
-    
-
+                    mime="text/csv"
 # --- Main Execution ---
 def main():
     st.set_page_config(page_title="Rental Mobil App", layout="wide")
