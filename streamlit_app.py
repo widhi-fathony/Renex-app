@@ -194,7 +194,7 @@ def main_app():
     inv_manager = st.session_state.inventory
     service = st.session_state.service
     
-    # ---------------- PAGE: KATALOG MOBIL ----------------
+  # ---------------- PAGE: KATALOG MOBIL ----------------
     if menu == "Katalog Mobil":
         st.header("Katalog Mobil Tersedia")
         st.info("Pilih mobil, tentukan durasi, dan lakukan pembayaran.")
@@ -205,7 +205,7 @@ def main_app():
         for idx, mobil in enumerate(mobil_list):
             with cols[idx % 3]:
                 with st.container(border=True):
-                    # UPDATE: Menampilkan Gambar Mobil
+                    # Menampilkan Gambar Mobil
                     st.image(mobil.image_url, use_container_width=True)
                     
                     st.markdown(f"### {mobil.merk}")
@@ -216,14 +216,21 @@ def main_app():
                     if mobil.is_available:
                         st.success("Tersedia")
                         
+                        # Key untuk state checkout dan penyimpanan durasi sementara
                         checkout_key = f"checkout_{mobil.id}"
+                        duration_key = f"saved_duration_{mobil.id}" # <--- KEY BARU UNTUK MENYIMPAN DURASI
+
                         if checkout_key not in st.session_state:
                             st.session_state[checkout_key] = False
 
                         if not st.session_state[checkout_key]:
                             # TAHAP 1: INPUT DURASI
-                            durasi = st.number_input(f"Durasi (Hari)", min_value=1, value=1, key=f"d_{mobil.id}")
+                            # Widget ini akan hilang saat masuk tahap 2, jadi kita perlu simpan nilainya
+                            durasi_input = st.number_input(f"Durasi (Hari)", min_value=1, value=1, key=f"d_{mobil.id}")
+                            
                             if st.button("Booking Sekarang", key=f"btn_book_{mobil.id}"):
+                                # SIMPAN NILAI DURASI KE VARIABLE PERMANEN SEBELUM RERUN
+                                st.session_state[duration_key] = durasi_input 
                                 st.session_state[checkout_key] = True
                                 st.rerun()
                         else:
@@ -231,14 +238,16 @@ def main_app():
                             st.markdown("---")
                             st.markdown("#### 💳 Konfirmasi")
                             
-                            durasi_fix = st.session_state[f"d_{mobil.id}"]
+                            # AMBIL DARI VARIABLE YANG DISIMPAN TADI (Bukan dari key widget)
+                            durasi_fix = st.session_state.get(duration_key, 1) 
+                            
                             total_harga = mobil.harga_sewa * durasi_fix
                             
                             st.write(f"Sewa: **{durasi_fix} Hari**")
                             st.markdown(f"Total: **Rp {total_harga:,.0f}**")
                             
                             with st.form(key=f"form_bayar_{mobil.id}"):
-                                metode = st.selectbox("Metode Pembayaran", ["QRIS", "BCA", "Mandiri"])
+                                metode = st.selectbox("Metode Pembayaran", ["QRIS", "Virtual Account", "Transfer Bank"])
                                 c1, c2 = st.columns(2)
                                 with c1:
                                     confirm = st.form_submit_button("✅ Bayar", type="primary")
