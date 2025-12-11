@@ -280,10 +280,10 @@ def main_app():
                                 st.markdown(f"Total: **Rp {total_harga:,.0f}**")
                                 
                                 with st.form(key=f"form_bayar_{mobil.id}"):
-                                    metode = st.selectbox("Metode Pembayaran", ["QRIS", "BCA", "Mandiri"])
+                                    metode = st.selectbox("Metode Pembayaran", ["QRIS", "Virtual Account", "Transfer Bank"])
                                     c1, c2 = st.columns(2)
                                     with c1:
-                                        confirm = st.form_submit_button("✅ Deal", type="primary")
+                                        confirm = st.form_submit_button("✅ Bayar", type="primary")
                                     with c2:
                                         cancel = st.form_submit_button("❌ Batal")
                                     
@@ -321,7 +321,6 @@ def main_app():
                         st.write(f"**Kembali:** {booking.get_tgl_kembali()}")
 
     # ---------------- PAGE: ADMIN DASHBOARD ----------------
-    # ---------------- PAGE: ADMIN DASHBOARD (PERBAIKAN INDENTASI) ----------------
     elif menu == "Admin Dashboard":
         st.title("Panel Admin")
         
@@ -429,7 +428,7 @@ def main_app():
                     else:
                         st.error("Mohon lengkapi Merk dan Nomor Polisi!")
                         
-        # --- TAB 3: LAPORAN KEUANGAN ---
+        # --- TAB 3: LAPORAN KEUANGAN (FIXED) ---
         with tab3:
             st.subheader("Laporan Pemasukan (Revenue)")
             
@@ -448,6 +447,7 @@ def main_app():
                 st.write("### Rincian Transaksi")
                 
                 laporan_data = []
+                # Loop 1: Menyiapkan data untuk Tabel
                 for b in valid_bookings:
                     laporan_data.append({
                         "ID Booking": b.booking_id,
@@ -462,17 +462,22 @@ def main_app():
                 
                 st.dataframe(laporan_data, use_container_width=True)
                 
+                # Loop 2: Menyiapkan string CSV
                 csv_header = "ID,Tanggal,Penyewa,Mobil,Total,Status\n"
                 csv_data = csv_header
                 for item in laporan_data:
                     row = f"{item['ID Booking']},{item['Tanggal Sewa']},{item['Penyewa']},{item['Mobil']},{item['Total Biaya']},{item['Status']}\n"
                     csv_data += row
                 
+                # PERBAIKAN PENTING DI SINI:
+                # 1. Posisi sejajar dengan 'st.dataframe' (DI LUAR for loop)
+                # 2. Ditambahkan key="unique_key" untuk mencegah error Duplicate ID
                 st.download_button(
                     label="📥 Download Laporan (CSV)",
                     data=csv_data,
                     file_name="laporan_keuangan_renex.csv",
-                    mime="text/csv"
+                    mime="text/csv",
+                    key="btn_download_csv_unique"  # <--- INI SOLUSI ERRORNYA
                 )
     # --- TAB 3: LAPORAN KEUANGAN ---
         with tab3:
