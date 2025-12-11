@@ -401,30 +401,26 @@ def main_app():
                         st.rerun()
                     else:
                         st.error("Mohon lengkapi Merk dan Nomor Polisi!")
+                        
     # --- TAB 3: LAPORAN KEUANGAN ---
         with tab3:
             st.subheader("Laporan Pemasukan (Revenue)")
             
-            # 1. Ambil semua booking yang valid (Active & Completed)
-                if 'all_bookings' not in st.session_state:
-                    st.session_state.all_bookings = []
+            if 'all_bookings' not in st.session_state:
+                st.session_state.all_bookings = []
                 
-            # Kita anggap pemasukan valid jika statusnya Active (sedang jalan) atau Completed (selesai)
             valid_bookings = [b for b in st.session_state.all_bookings if b.status_booking in ["Active", "Completed"]]
             
             if not valid_bookings:
                 st.info("Belum ada data transaksi penyewaan.")
             else:
-                # 2. Hitung Total Pemasukan
                 total_pendapatan = sum(b.total_biaya for b in valid_bookings)
                 
-                # Tampilkan Metric Besar
                 st.metric(label="Total Pemasukan Bersih", value=f"Rp {total_pendapatan:,.0f}")
                 
                 st.write("---")
                 st.write("### Rincian Transaksi")
                 
-                # 3. Siapkan Data untuk Tabel
                 laporan_data = []
                 for b in valid_bookings:
                     laporan_data.append({
@@ -438,11 +434,9 @@ def main_app():
                         "Status": b.status_booking
                     })
                 
-                # 4. Tampilkan Tabel
                 st.dataframe(laporan_data, use_container_width=True)
                 
-                # Fitur Tambahan: Download Laporan (Opsional, menggunakan format CSV sederhana)
-                # Kita buat string CSV manual agar tidak perlu import pandas jika belum install
+
                 csv_header = "ID,Tanggal,Penyewa,Mobil,Total,Status\n"
                 csv_data = csv_header
                 for item in laporan_data:
