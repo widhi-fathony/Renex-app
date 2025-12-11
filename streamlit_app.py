@@ -321,14 +321,15 @@ def main_app():
                         st.write(f"**Kembali:** {booking.get_tgl_kembali()}")
 
     # ---------------- PAGE: ADMIN DASHBOARD ----------------
+    # ---------------- PAGE: ADMIN DASHBOARD (PERBAIKAN INDENTASI) ----------------
     elif menu == "Admin Dashboard":
         st.title("Panel Admin")
         
         tab1, tab2, tab3 = st.tabs(["Manajemen Pesanan", "Tambah Unit Mobil", "Laporan Keuangan"])        
+        
         # --- TAB 1: TRACKING PESANAN ---
         with tab1:
             st.subheader("Tracking Pesanan")
-            # Pastikan list booking ada di session state
             if 'all_bookings' not in st.session_state:
                 st.session_state.all_bookings = []
 
@@ -341,18 +342,20 @@ def main_app():
                 with st.container(border=True):
                     c1, c2, c3 = st.columns([1, 2, 1])
                     with c1:
-                        # Menampilkan gambar mobil
                         try:
                             st.image(b.kendaraan.image_url, use_container_width=True)
                         except:
                             st.write("No Image")
-                     with c2: 
+                    
+                    # PERBAIKAN: with c2 harus sejajar lurus dengan with c1
+                    with c2: 
                         st.markdown(f"**{b.kendaraan.merk}**")
                         st.caption(f"Penyewa: {b.user.nama}")
-                        
                         st.write("📅 **Jadwal Sewa:**")
                         st.code(f"{b.tgl_sewa} s/d {b.tgl_kembali}")
                         st.caption(f"Durasi Total: {b.durasi_hari} Hari")
+                    
+                    # PERBAIKAN: with c3 harus sejajar lurus dengan with c2
                     with c3:
                         if st.button("Selesai & Restock", key=f"done_{b.booking_id}", type="primary"):
                             service.selesaikan_pesanan(b)
@@ -363,11 +366,9 @@ def main_app():
         with tab2:
             st.subheader("Input Mobil Baru")
             
-            # 1. Cek folder penyimpanan gambar
             if not os.path.exists("car_images"):
                 os.makedirs("car_images")
 
-            # 2. Mulai Form
             with st.form("add_car_form"):
                 tipe_mobil = st.selectbox("Tipe Mobil", ["Hatchback", "Sedan", "SUV"])
                 
@@ -378,11 +379,9 @@ def main_app():
                 with col2:
                     harga = st.number_input("Harga Sewa per Hari", min_value=100000, step=50000)
                     
-                # Input Spesifik & Default Image
                 extra_attr = None
                 default_img = ""
                 
-                # Gunakan placeholder image online jika user tidak upload
                 IMG_HATCHBACK = "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=500&q=60"
                 IMG_SEDAN = "https://images.unsplash.com/photo-1555215695-3004980adade?auto=format&fit=crop&w=500&q=60"
                 IMG_SUV = "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=500&q=60"
@@ -400,29 +399,22 @@ def main_app():
 
                 st.write("---")
                 st.write("Foto Kendaraan (Opsional)")
-                
-                # Upload File ada DI DALAM form
                 uploaded_file = st.file_uploader("Upload Foto (JPG/PNG)", type=["jpg", "png", "jpeg"])
                 
-                # PENTING: Tombol submit ada DI DALAM form (sejajar dengan uploaded_file)
+                # PERBAIKAN: Tombol ini harus sejajar lurus (menjorok ke dalam form)
                 submit_add = st.form_submit_button("Simpan ke Inventory")
                 
-                # --- LOGIKA PENYIMPANAN ---
                 if submit_add:
                     if merk and nopol:
                         id_baru = f"C{len(inv_manager.daftar_mobil)+1:02d}"
-                        
-                        # Tentukan path gambar (Upload atau Default)
                         final_img_path = default_img 
                         
                         if uploaded_file is not None:
-                            # Simpan file ke folder lokal
                             file_path = os.path.join("car_images", f"{id_baru}_{uploaded_file.name}")
                             with open(file_path, "wb") as f:
                                 f.write(uploaded_file.getbuffer())
                             final_img_path = file_path 
                         
-                        # Buat Objek Mobil
                         new_car = None
                         if tipe_mobil == "Hatchback":
                             new_car = Hatchback(id_baru, merk, nopol, harga, final_img_path, extra_attr)
@@ -431,13 +423,57 @@ def main_app():
                         elif tipe_mobil == "SUV":
                             new_car = SUV(id_baru, merk, nopol, harga, final_img_path, extra_attr)
                         
-                        # Simpan ke Inventory
                         inv_manager.tambah_unit(new_car)
                         st.success(f"Berhasil menambahkan {merk}!")
                         st.rerun()
                     else:
                         st.error("Mohon lengkapi Merk dan Nomor Polisi!")
                         
+        # --- TAB 3: LAPORAN KEUANGAN ---
+        with tab3:
+            st.subheader("Laporan Pemasukan (Revenue)")
+            
+            if 'all_bookings' not in st.session_state:
+                st.session_state.all_bookings = []
+                
+            valid_bookings = [b for b in st.session_state.all_bookings if b.status_booking in ["Active", "Completed"]]
+            
+            if not valid_bookings:
+                st.info("Belum ada data transaksi penyewaan.")
+            else:
+                total_pendapatan = sum(b.total_biaya for b in valid_bookings)
+                st.metric(label="Total Pemasukan Bersih", value=f"Rp {total_pendapatan:,.0f}")
+                
+                st.write("---")
+                st.write("### Rincian Transaksi")
+                
+                laporan_data = []
+                for b in valid_bookings:
+                    laporan_data.append({
+                        "ID Booking": b.booking_id,
+                        "Tanggal Sewa": b.tgl_sewa.strftime("%Y-%m-%d"),
+                        "Penyewa": b.user.nama,
+                        "Mobil": f"{b.kendaraan.merk} ({b.kendaraan.nopol})",
+                        "Durasi": f"{b.durasi_hari} Hari",
+                        "Metode Bayar": b.pembayaran.metode if b.pembayaran else "N/A",
+                        "Total Biaya": f"Rp {b.total_biaya:,.0f}",
+                        "Status": b.status_booking
+                    })
+                
+                st.dataframe(laporan_data, use_container_width=True)
+                
+                csv_header = "ID,Tanggal,Penyewa,Mobil,Total,Status\n"
+                csv_data = csv_header
+                for item in laporan_data:
+                    row = f"{item['ID Booking']},{item['Tanggal Sewa']},{item['Penyewa']},{item['Mobil']},{item['Total Biaya']},{item['Status']}\n"
+                    csv_data += row
+                
+                st.download_button(
+                    label="📥 Download Laporan (CSV)",
+                    data=csv_data,
+                    file_name="laporan_keuangan_renex.csv",
+                    mime="text/csv"
+                )
     # --- TAB 3: LAPORAN KEUANGAN ---
         with tab3:
             st.subheader("Laporan Pemasukan (Revenue)")
