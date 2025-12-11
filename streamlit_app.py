@@ -2,6 +2,7 @@ import streamlit as st
 from abc import ABC, abstractmethod
 import datetime
 import uuid
+import os
 
 # ==========================================
 # BAGIAN 1: MODEL & LOGIC (Backend)
