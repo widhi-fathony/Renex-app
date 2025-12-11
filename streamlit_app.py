@@ -342,7 +342,7 @@ def main_app():
                     extra_attr = st.checkbox("4WD?")
                     default_img = IMG_SUV
 
-               # --- SUB-PAGE: TAMBAH MOBIL ---
+              # --- SUB-PAGE: TAMBAH MOBIL ---
         with tab2:
             st.subheader("Input Mobil Baru")
             
@@ -378,9 +378,30 @@ def main_app():
                 st.write("Foto Kendaraan (Opsional)")
                 uploaded_file = st.file_uploader("Upload Foto", type=["jpg", "png", "jpeg"])
                 
+                # PERBAIKAN: Tombol ini harus sejajar (indentasi) di dalam 'with st.form'
                 submit_add = st.form_submit_button("Simpan ke Inventory")
                 
-                if submit_add and merk and
+                if submit_add and merk and nopol:
+                    id_baru = f"C{len(inv_manager.daftar_mobil)+1:02d}"
+                    final_img_path = default_img
+                    
+                    if uploaded_file is not None:
+                        file_path = os.path.join("car_images", f"{id_baru}_{uploaded_file.name}")
+                        with open(file_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                        final_img_path = file_path
+                    
+                    new_car = None
+                    if tipe_mobil == "Hatchback":
+                        new_car = Hatchback(id_baru, merk, nopol, harga, final_img_path, extra_attr)
+                    elif tipe_mobil == "Sedan":
+                        new_car = Sedan(id_baru, merk, nopol, harga, final_img_path, extra_attr)
+                    elif tipe_mobil == "SUV":
+                        new_car = SUV(id_baru, merk, nopol, harga, final_img_path, extra_attr)
+                    
+                    inv_manager.tambah_unit(new_car)
+                    st.success(f"Berhasil menambahkan {merk}!")
+                    st.rerun()
 # --- Main Execution ---
 def main():
     st.set_page_config(page_title="Rental Mobil App", layout="wide")
