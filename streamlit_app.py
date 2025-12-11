@@ -288,13 +288,19 @@ def main_app():
                         st.write(f"**Kembali:** {booking.get_tgl_kembali()}")
 
     # ---------------- PAGE: ADMIN DASHBOARD ----------------
+    # ---------------- PAGE: ADMIN DASHBOARD ----------------
     elif menu == "Admin Dashboard":
         st.title("Panel Admin")
         
         tab1, tab2 = st.tabs(["Manajemen Pesanan", "Tambah Unit Mobil"])
         
+        # --- TAB 1: TRACKING PESANAN ---
         with tab1:
             st.subheader("Tracking Pesanan")
+            # Pastikan list booking ada di session state
+            if 'all_bookings' not in st.session_state:
+                st.session_state.all_bookings = []
+
             active_bookings = [b for b in st.session_state.all_bookings if b.status_booking == "Active"]
             
             if not active_bookings:
@@ -304,7 +310,11 @@ def main_app():
                 with st.container(border=True):
                     c1, c2, c3 = st.columns([1, 2, 1])
                     with c1:
-                        st.image(b.kendaraan.image_url, use_container_width=True)
+                        # Menampilkan gambar mobil
+                        try:
+                            st.image(b.kendaraan.image_url, use_container_width=True)
+                        except:
+                            st.write("No Image")
                     with c2:
                         st.markdown(f"**{b.kendaraan.merk}**")
                         st.caption(f"Penyewa: {b.user.nama}")
@@ -315,41 +325,18 @@ def main_app():
                             st.success("Sewa Selesai")
                             st.rerun()
 
-        with tab2:
-            st.subheader("Input Mobil Baru")
-            with st.form("add_car_form"):
-                tipe_mobil = st.selectbox("Tipe Mobil", ["Hatchback", "Sedan", "SUV"])
-                col1, col2 = st.columns(2)
-                with col1:
-                    merk = st.text_input("Merk Mobil")
-                    nopol = st.text_input("Nomor Polisi")
-                with col2:
-                    harga = st.number_input("Harga Sewa", min_value=100000, step=50000)
-                    
-                extra_attr = None
-                default_img = ""
-                
-                # Logic Default Image berdasarkan tipe
-                if tipe_mobil == "Hatchback":
-                    extra_attr = st.number_input("Kapasitas Bagasi (L)", min_value=100)
-                    default_img = IMG_HATCHBACK
-                elif tipe_mobil == "Sedan":
-                    extra_attr = st.selectbox("Kenyamanan", ["Standard", "High", "Luxury"])
-                    default_img = IMG_SEDAN
-                elif tipe_mobil == "SUV":
-                    extra_attr = st.checkbox("4WD?")
-                    default_img = IMG_SUV
-
-                # --- SUB-PAGE: TAMBAH MOBIL ---
+        # --- TAB 2: INPUT MOBIL BARU ---
         with tab2:
             st.subheader("Input Mobil Baru")
             
-            # Buat folder penyimpanan gambar jika belum ada
+            # 1. Cek folder penyimpanan gambar
             if not os.path.exists("car_images"):
                 os.makedirs("car_images")
 
+            # 2. Mulai Form
             with st.form("add_car_form"):
                 tipe_mobil = st.selectbox("Tipe Mobil", ["Hatchback", "Sedan", "SUV"])
+                
                 col1, col2 = st.columns(2)
                 with col1:
                     merk = st.text_input("Merk Mobil (Contoh: Honda Jazz)")
@@ -357,10 +344,15 @@ def main_app():
                 with col2:
                     harga = st.number_input("Harga Sewa per Hari", min_value=100000, step=50000)
                     
+                # Input Spesifik & Default Image
                 extra_attr = None
                 default_img = ""
                 
-                # Logic Default Image (Jika admin tidak upload foto)
+                # Gunakan placeholder image online jika user tidak upload
+                IMG_HATCHBACK = "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=500&q=60"
+                IMG_SEDAN = "https://images.unsplash.com/photo-1555215695-3004980adade?auto=format&fit=crop&w=500&q=60"
+                IMG_SUV = "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=500&q=60"
+                
                 if tipe_mobil == "Hatchback":
                     extra_attr = st.number_input("Kapasitas Bagasi (Liter)", min_value=100)
                     default_img = IMG_HATCHBACK
@@ -372,44 +364,45 @@ def main_app():
                     extra_attr = is_4wd
                     default_img = IMG_SUV
 
-                # --- BAGIAN UPLOAD FILE ---
                 st.write("---")
-                st.write("Foto Kendaraan")
+                st.write("Foto Kendaraan (Opsional)")
+                
+                # Upload File ada DI DALAM form
                 uploaded_file = st.file_uploader("Upload Foto (JPG/PNG)", type=["jpg", "png", "jpeg"])
                 
+                # PENTING: Tombol submit ada DI DALAM form (sejajar dengan uploaded_file)
                 submit_add = st.form_submit_button("Simpan ke Inventory")
                 
-                if submit_add and merk and nopol:
-                    # Generate ID Baru
-                    id_baru = f"C{len(inv_manager.daftar_mobil)+1:02d}"
-                    
-                    # Logika Penyimpanan Gambar
-                    final_img_path = default_img # Default pakai link online
-                    
-                    if uploaded_file is not None:
-                        # 1. Tentukan path simpan (folder/nama_file)
-                        # Kita tambahkan ID di depan nama file agar tidak bentrok jika nama file sama
-                        file_path = os.path.join("car_images", f"{id_baru}_{uploaded_file.name}")
+                # --- LOGIKA PENYIMPANAN ---
+                if submit_add:
+                    if merk and nopol:
+                        id_baru = f"C{len(inv_manager.daftar_mobil)+1:02d}"
                         
-                        # 2. Tulis file dari memori ke folder lokal
-                        with open(file_path, "wb") as f:
-                            f.write(uploaded_file.getbuffer())
+                        # Tentukan path gambar (Upload atau Default)
+                        final_img_path = default_img 
                         
-                        # 3. Path inilah yang akan disimpan ke object mobil
-                        final_img_path = file_path
-                    
-                    # Pembuatan Object Mobil
-                    new_car = None
-                    if tipe_mobil == "Hatchback":
-                        new_car = Hatchback(id_baru, merk, nopol, harga, final_img_path, extra_attr)
-                    elif tipe_mobil == "Sedan":
-                        new_car = Sedan(id_baru, merk, nopol, harga, final_img_path, extra_attr)
-                    elif tipe_mobil == "SUV":
-                        new_car = SUV(id_baru, merk, nopol, harga, final_img_path, extra_attr)
-                    
-                    inv_manager.tambah_unit(new_car)
-                    st.success(f"Berhasil menambahkan {merk} dengan foto baru!")
-                    st.rerun()
+                        if uploaded_file is not None:
+                            # Simpan file ke folder lokal
+                            file_path = os.path.join("car_images", f"{id_baru}_{uploaded_file.name}")
+                            with open(file_path, "wb") as f:
+                                f.write(uploaded_file.getbuffer())
+                            final_img_path = file_path 
+                        
+                        # Buat Objek Mobil
+                        new_car = None
+                        if tipe_mobil == "Hatchback":
+                            new_car = Hatchback(id_baru, merk, nopol, harga, final_img_path, extra_attr)
+                        elif tipe_mobil == "Sedan":
+                            new_car = Sedan(id_baru, merk, nopol, harga, final_img_path, extra_attr)
+                        elif tipe_mobil == "SUV":
+                            new_car = SUV(id_baru, merk, nopol, harga, final_img_path, extra_attr)
+                        
+                        # Simpan ke Inventory
+                        inv_manager.tambah_unit(new_car)
+                        st.success(f"Berhasil menambahkan {merk}!")
+                        st.rerun()
+                    else:
+                        st.error("Mohon lengkapi Merk dan Nomor Polisi!")
 
 # --- Main Execution ---
 def main():
