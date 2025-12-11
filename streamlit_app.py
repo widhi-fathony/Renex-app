@@ -474,6 +474,7 @@ def main_app():
                     data=csv_data,
                     file_name="laporan_keuangan_renex.csv",
                     mime="text/csv"
+                )
 # --- Main Execution ---
 def main():
     st.set_page_config(page_title="Rental Mobil App", layout="wide")
