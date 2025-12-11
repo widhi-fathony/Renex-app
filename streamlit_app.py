@@ -77,12 +77,17 @@ class Pembayaran:
 
 # --- Class: Booking ---
 class Booking:
-    def __init__(self, booking_id, user, kendaraan, durasi_hari):
+    def __init__(self, booking_id, user, kendaraan, tgl_mulai, tgl_selesai):
         self.booking_id = booking_id
         self.user = user
         self.kendaraan = kendaraan
-        self.tgl_sewa = datetime.date.today()
-        self.durasi_hari = durasi_hari
+        
+        self.tgl_sewa = tgl_mulai      # Tanggal Mulai
+        self.tgl_kembali = tgl_selesai # Tanggal Selesai
+        
+        delta = tgl_selesai - tgl_mulai
+        self.durasi_hari = delta.days if delta.days > 0 else 1
+        
         self.total_biaya = self.hitung_total()
         self.status_booking = "Active" 
         self.pembayaran = None
@@ -94,7 +99,7 @@ class Booking:
         self.pembayaran = pembayaran
             
     def get_tgl_kembali(self):
-        return self.tgl_sewa + datetime.timedelta(days=self.durasi_hari)
+        return self.tgl_kembali # Sekarang cukup return variabel ini
 
 # --- Class: InventoryManager ---
 class InventoryManager:
@@ -125,11 +130,14 @@ class BookingService:
         if 'all_bookings' not in st.session_state:
             st.session_state.all_bookings = []
 
-    def buat_pesanan(self, user, kendaraan_id, durasi, metode_bayar):
+   # GANTI method buat_pesanan lama dengan yang ini:
+    def buat_pesanan(self, user, kendaraan_id, tgl_mulai, tgl_selesai, metode_bayar):
         mobil = self.inventory_manager.get_mobil_by_id(kendaraan_id)
         if mobil and mobil.get_status():
             booking_id = str(uuid.uuid4())[:8]
-            booking = Booking(booking_id, user, mobil, durasi)
+            
+            # Memasukkan tgl_mulai dan tgl_selesai ke class Booking
+            booking = Booking(booking_id, user, mobil, tgl_mulai, tgl_selesai)
             
             pay_id = f"PAY-{str(uuid.uuid4())[:6]}"
             pembayaran = Pembayaran(pay_id, booking.total_biaya, metode_bayar)
@@ -214,56 +222,81 @@ def main_app():
                     st.write(f"**Plat**: {mobil.nopol}")
                     st.write(f"**Harga**: Rp {mobil.harga_sewa:,.0f} /hari")
                     
+                    # ... kode menampilkan gambar dan harga di atas TETAP SAMA ...
+                    
                     if mobil.is_available:
                         st.success("Tersedia")
                         
-                        # Key untuk state checkout dan penyimpanan durasi sementara
+                        # --- KODE BARU MULAI DARI SINI (GANTI LOGIKA LAMA) ---
                         checkout_key = f"checkout_{mobil.id}"
-                        duration_key = f"saved_duration_{mobil.id}" # <--- KEY BARU UNTUK MENYIMPAN DURASI
+                        dates_key = f"saved_dates_{mobil.id}" # Key untuk simpan tanggal
 
                         if checkout_key not in st.session_state:
                             st.session_state[checkout_key] = False
 
                         if not st.session_state[checkout_key]:
-                            # TAHAP 1: INPUT DURASI
-                            # Widget ini akan hilang saat masuk tahap 2, jadi kita perlu simpan nilainya
-                            durasi_input = st.number_input(f"Durasi (Hari)", min_value=1, value=1, key=f"d_{mobil.id}")
+                            # TAHAP 1: INPUT TANGGAL (KALENDER)
+                            today = datetime.date.today()
                             
-                            if st.button("Booking Sekarang", key=f"btn_book_{mobil.id}"):
-                                # SIMPAN NILAI DURASI KE VARIABLE PERMANEN SEBELUM RERUN
-                                st.session_state[duration_key] = durasi_input 
+                            # Widget Kalender Range
+                            dates_input = st.date_input(
+                                "Pilih Tanggal Sewa (Mulai - Selesai)",
+                                value=[], 
+                                min_value=today,
+                                key=f"d_input_{mobil.id}"
+                            )
+                            
+                            # Tombol Lanjut hanya aktif jika user memilih 2 tanggal
+                            disable_btn = True
+                            if isinstance(dates_input, (list, tuple)) and len(dates_input) == 2:
+                                disable_btn = False
+                                
+                            if st.button("Lanjut Pembayaran", key=f"btn_book_{mobil.id}", disabled=disable_btn):
+                                st.session_state[dates_key] = dates_input # Simpan tanggal
                                 st.session_state[checkout_key] = True
                                 st.rerun()
+                                
+                            if disable_btn:
+                                st.caption("*Pilih tanggal Mulai dan Selesai pada kalender.*")
+
                         else:
-                            # TAHAP 2: KONFIRMASI & PEMBAYARAN
+                            # TAHAP 2: KONFIRMASI & BAYAR
                             st.markdown("---")
                             st.markdown("#### 💳 Konfirmasi")
                             
-                            # AMBIL DARI VARIABLE YANG DISIMPAN TADI (Bukan dari key widget)
-                            durasi_fix = st.session_state.get(duration_key, 1) 
+                            # Ambil data tanggal yang disimpan
+                            dates = st.session_state.get(dates_key, [])
                             
-                            total_harga = mobil.harga_sewa * durasi_fix
-                            
-                            st.write(f"Sewa: **{durasi_fix} Hari**")
-                            st.markdown(f"Total: **Rp {total_harga:,.0f}**")
-                            
-                            with st.form(key=f"form_bayar_{mobil.id}"):
-                                metode = st.selectbox("Metode Pembayaran", ["QRIS", "Virtual Account", "Transfer Bank"])
-                                c1, c2 = st.columns(2)
-                                with c1:
-                                    confirm = st.form_submit_button("✅ Bayar", type="primary")
-                                with c2:
-                                    cancel = st.form_submit_button("❌ Batal")
+                            if len(dates) == 2:
+                                tgl_mulai, tgl_selesai = dates
+                                # Hitung durasi otomatis
+                                delta = tgl_selesai - tgl_mulai
+                                durasi_fix = delta.days if delta.days > 0 else 1
+                                total_harga = mobil.harga_sewa * durasi_fix
                                 
-                                if confirm:
-                                    booking = service.buat_pesanan(user, mobil.id, durasi_fix, metode)
-                                    if booking:
+                                # Tampilkan Rincian Tanggal
+                                st.info(f"📅 {tgl_mulai.strftime('%d-%m-%Y')}  s/d  {tgl_selesai.strftime('%d-%m-%Y')}")
+                                st.write(f"Durasi: **{durasi_fix} Hari**")
+                                st.markdown(f"Total: **Rp {total_harga:,.0f}**")
+                                
+                                with st.form(key=f"form_bayar_{mobil.id}"):
+                                    metode = st.selectbox("Metode Pembayaran", ["QRIS", "BCA", "Mandiri"])
+                                    c1, c2 = st.columns(2)
+                                    with c1:
+                                        confirm = st.form_submit_button("✅ Deal", type="primary")
+                                    with c2:
+                                        cancel = st.form_submit_button("❌ Batal")
+                                    
+                                    if confirm:
+                                        # Panggil fungsi buat_pesanan yang BARU
+                                        booking = service.buat_pesanan(user, mobil.id, tgl_mulai, tgl_selesai, metode)
+                                        if booking:
+                                            st.session_state[checkout_key] = False
+                                            st.success("Booking Berhasil!")
+                                            st.rerun()
+                                    if cancel:
                                         st.session_state[checkout_key] = False
-                                        st.success(f"Pembayaran via {metode} berhasil!")
                                         st.rerun()
-                                if cancel:
-                                    st.session_state[checkout_key] = False
-                                    st.rerun()
                     else:
                         st.error("Sedang Disewa")
                         st.button("Tidak Tersedia", disabled=True, key=f"dis_{mobil.id}")
@@ -313,10 +346,13 @@ def main_app():
                             st.image(b.kendaraan.image_url, use_container_width=True)
                         except:
                             st.write("No Image")
-                    with c2:
+                     with c2: 
                         st.markdown(f"**{b.kendaraan.merk}**")
                         st.caption(f"Penyewa: {b.user.nama}")
-                        st.write(f"Kembali: **{b.get_tgl_kembali()}**")
+                        
+                        st.write("📅 **Jadwal Sewa:**")
+                        st.code(f"{b.tgl_sewa} s/d {b.tgl_kembali}")
+                        st.caption(f"Durasi Total: {b.durasi_hari} Hari")
                     with c3:
                         if st.button("Selesai & Restock", key=f"done_{b.booking_id}", type="primary"):
                             service.selesaikan_pesanan(b)
