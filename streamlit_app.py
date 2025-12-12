@@ -15,7 +15,7 @@ class Kendaraan(ABC):
         self.merk = merk
         self.nopol = nopol
         self.harga_sewa = harga_sewa
-        self.image_url = image_url # Menyimpan link/path gambar
+        self.image_url = image_url 
         self.is_available = True
 
     def get_status(self):
@@ -81,8 +81,8 @@ class Booking:
         self.user = user
         self.kendaraan = kendaraan
         
-        self.tgl_sewa = tgl_mulai      # Tanggal Mulai
-        self.tgl_kembali = tgl_selesai # Tanggal Selesai
+        self.tgl_sewa = tgl_mulai      
+        self.tgl_kembali = tgl_selesai 
         
         delta = tgl_selesai - tgl_mulai
         self.durasi_hari = delta.days if delta.days > 0 else 1
@@ -98,7 +98,7 @@ class Booking:
         self.pembayaran = pembayaran
             
     def get_tgl_kembali(self):
-        return self.tgl_kembali # Sekarang cukup return variabel ini
+        return self.tgl_kembali 
 
 # --- Class: InventoryManager ---
 class InventoryManager:
@@ -240,7 +240,7 @@ def main_app():
                                 disable_btn = False
                                 
                             if st.button("Lanjut Pembayaran", key=f"btn_book_{mobil.id}", disabled=disable_btn):
-                                st.session_state[dates_key] = dates_input # Simpan tanggal
+                                st.session_state[dates_key] = dates_input 
                                 st.session_state[checkout_key] = True
                                 st.rerun()
                                 
@@ -382,7 +382,6 @@ def main_app():
                 st.write("Foto Kendaraan (Opsional)")
                 uploaded_file = st.file_uploader("Upload Foto (JPG/PNG)", type=["jpg", "png", "jpeg"])
                 
-                # PERBAIKAN: Tombol ini harus sejajar lurus (menjorok ke dalam form)
                 submit_add = st.form_submit_button("Simpan ke Inventory")
                 
                 if submit_add:
@@ -410,7 +409,7 @@ def main_app():
                     else:
                         st.error("Mohon lengkapi Merk dan Nomor Polisi!")
     
-# --- TAB 3: LAPORAN KEUANGAN ---
+    # --- TAB 3: LAPORAN KEUANGAN ---
         with tab3:
             st.subheader("Laporan Pemasukan (Revenue)")
             
