@@ -8,9 +8,8 @@ import os
 # BAGIAN 1: MODEL & LOGIC (Backend)
 # ==========================================
 
-# --- Abstract Class: Kendaraan ---
+# --- Class: Kendaraan ---
 class Kendaraan(ABC):
-    # UPDATE: Menambah parameter image_url
     def __init__(self, id_k, merk, nopol, harga_sewa, image_url):
         self.id = id_k
         self.merk = merk
@@ -130,13 +129,11 @@ class BookingService:
         if 'all_bookings' not in st.session_state:
             st.session_state.all_bookings = []
 
-   # GANTI method buat_pesanan lama dengan yang ini:
     def buat_pesanan(self, user, kendaraan_id, tgl_mulai, tgl_selesai, metode_bayar):
         mobil = self.inventory_manager.get_mobil_by_id(kendaraan_id)
         if mobil and mobil.get_status():
             booking_id = str(uuid.uuid4())[:8]
             
-            # Memasukkan tgl_mulai dan tgl_selesai ke class Booking
             booking = Booking(booking_id, user, mobil, tgl_mulai, tgl_selesai)
             
             pay_id = f"PAY-{str(uuid.uuid4())[:6]}"
@@ -158,16 +155,13 @@ class BookingService:
 # BAGIAN 2: STREAMLIT UI (Frontend)
 # ==========================================
 
-# URL Gambar Default (Placeholder Online)
 IMG_HATCHBACK = "https://upload.wikimedia.org/wikipedia/commons/b/b5/2021_Toyota_Yaris_TRD_Sportivo_1.5_%28Indonesia%29_front_view_01.jpg"
 IMG_SEDAN = "https://upload.wikimedia.org/wikipedia/commons/8/84/2018_Honda_Civic_1.5_E_hatchback_%28FK4%3B_01-23-2019%29%2C_South_Tangerang.jpg"
 IMG_SUV = "https://assets.promediateknologi.id/crop/0x0:0x0/0x0/webp/photo/jawapos/2021/02/New-Pajero-Sport-Mistubishi.jpg"
 
-# --- Init State ---
 if 'inventory' not in st.session_state:
     inv = InventoryManager()
     
-    # UPDATE: Menambahkan URL Gambar pada Data Dummy
     inv.tambah_unit(Hatchback("C01", "Toyota Yaris", "L 1234 ABC", 300000, IMG_HATCHBACK, 250))
     inv.tambah_unit(Sedan("C02", "Honda Civic", "L 5678 DEF", 500000, IMG_SEDAN, "High"))
     inv.tambah_unit(SUV("C03", "Pajero Sport", "L 9999 XYZ", 700000, IMG_SUV, True))
@@ -214,7 +208,6 @@ def main_app():
         for idx, mobil in enumerate(mobil_list):
             with cols[idx % 3]:
                 with st.container(border=True):
-                    # Menampilkan Gambar Mobil
                     st.image(mobil.image_url, use_container_width=True)
                     
                     st.markdown(f"### {mobil.merk}")
@@ -222,23 +215,19 @@ def main_app():
                     st.write(f"**Plat**: {mobil.nopol}")
                     st.write(f"**Harga**: Rp {mobil.harga_sewa:,.0f} /hari")
                     
-                    # ... kode menampilkan gambar dan harga di atas TETAP SAMA ...
                     
                     if mobil.is_available:
                         st.success("Tersedia")
                         
-                        # --- KODE BARU MULAI DARI SINI (GANTI LOGIKA LAMA) ---
                         checkout_key = f"checkout_{mobil.id}"
-                        dates_key = f"saved_dates_{mobil.id}" # Key untuk simpan tanggal
+                        dates_key = f"saved_dates_{mobil.id}" 
 
                         if checkout_key not in st.session_state:
                             st.session_state[checkout_key] = False
 
                         if not st.session_state[checkout_key]:
-                            # TAHAP 1: INPUT TANGGAL (KALENDER)
                             today = datetime.date.today()
                             
-                            # Widget Kalender Range
                             dates_input = st.date_input(
                                 "Pilih Tanggal Sewa (Mulai - Selesai)",
                                 value=[], 
@@ -246,7 +235,6 @@ def main_app():
                                 key=f"d_input_{mobil.id}"
                             )
                             
-                            # Tombol Lanjut hanya aktif jika user memilih 2 tanggal
                             disable_btn = True
                             if isinstance(dates_input, (list, tuple)) and len(dates_input) == 2:
                                 disable_btn = False
@@ -264,17 +252,14 @@ def main_app():
                             st.markdown("---")
                             st.markdown("#### 💳 Konfirmasi")
                             
-                            # Ambil data tanggal yang disimpan
                             dates = st.session_state.get(dates_key, [])
                             
                             if len(dates) == 2:
                                 tgl_mulai, tgl_selesai = dates
-                                # Hitung durasi otomatis
                                 delta = tgl_selesai - tgl_mulai
                                 durasi_fix = delta.days if delta.days > 0 else 1
                                 total_harga = mobil.harga_sewa * durasi_fix
                                 
-                                # Tampilkan Rincian Tanggal
                                 st.info(f"📅 {tgl_mulai.strftime('%d-%m-%Y')}  s/d  {tgl_selesai.strftime('%d-%m-%Y')}")
                                 st.write(f"Durasi: **{durasi_fix} Hari**")
                                 st.markdown(f"Total: **Rp {total_harga:,.0f}**")
@@ -311,7 +296,6 @@ def main_app():
         else:
             for booking in my_bookings:
                 with st.expander(f"{booking.kendaraan.merk} ({booking.tgl_sewa})"):
-                    # Tampilkan gambar kecil di riwayat
                     c_img, c_det = st.columns([1, 3])
                     with c_img:
                         st.image(booking.kendaraan.image_url, width=150)
@@ -346,7 +330,6 @@ def main_app():
                         except:
                             st.write("No Image")
                     
-                    # PERBAIKAN: with c2 harus sejajar lurus dengan with c1
                     with c2: 
                         st.markdown(f"**{b.kendaraan.merk}**")
                         st.caption(f"Penyewa: {b.user.nama}")
@@ -354,7 +337,6 @@ def main_app():
                         st.code(f"{b.tgl_sewa} s/d {b.tgl_kembali}")
                         st.caption(f"Durasi Total: {b.durasi_hari} Hari")
                     
-                    # PERBAIKAN: with c3 harus sejajar lurus dengan with c2
                     with c3:
                         if st.button("Selesai & Restock", key=f"done_{b.booking_id}", type="primary"):
                             service.selesaikan_pesanan(b)
